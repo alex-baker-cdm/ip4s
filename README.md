@@ -12,6 +12,10 @@ There are two defining characteristics of this project that make it different fr
 
 See the [guide](docs/guide.md) and [ScalaDoc](https://javadoc.io/doc/com.comcast/ip4s-core_3) for more details.
 
+## Scala Version Support
+
+This library is cross-published for Scala 2.12, 2.13, and 3. The Scala 3 builds target Scala 3.3 LTS for long-term support and stability.
+
 ## Getting Binaries
 
 This library is published on Maven Central under group id `com.comcast` and artifact id `ip4s-core_${scalaBinaryVersion}`. Add the following to your SBT build:
