@@ -9,10 +9,15 @@ name: Clean
 
 on: push
 
+permissions:
+  contents: read
+
 jobs:
   delete-artifacts:
     name: Delete Artifacts
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
