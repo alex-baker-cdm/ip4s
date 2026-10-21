@@ -37,6 +37,57 @@ ThisBuild / mimaBinaryIssueFilters ++= Seq(
   ProblemFilters.exclude[ReversedMissingMethodProblem]("com.comcast.ip4s.IpAddress.isLinkLocal")
 )
 
+// GitHub Actions supply-chain hardening: pin third-party actions to commit SHAs
+// (tag kept as a trailing comment) and run with least-privilege GITHUB_TOKEN permissions.
+import org.typelevel.sbt.gha.{PermissionValue, Permissions}
+
+lazy val pinnedActions: Map[(String, String), String] = Map(
+  ("actions", "checkout") -> "11d5960a326750d5838078e36cf38b85af677262 # v4.4.0",
+  ("actions", "setup-java") -> "cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1",
+  ("actions", "upload-artifact") -> "ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2",
+  ("actions", "download-artifact") -> "d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0",
+  ("sbt", "setup-sbt") -> "ecad189dd245444b9ae0a0cd5922fd938b88906f # v1.5.12",
+  ("scalacenter", "sbt-dependency-submission") -> "f3c0455a87097de07b66c3dc1b8619b5976c1c89 # v2.3.1"
+)
+
+def pinAction(step: WorkflowStep): WorkflowStep = step match {
+  case use: WorkflowStep.Use =>
+    use.ref match {
+      case UseRef.Public(owner, repo, _) if pinnedActions.contains((owner, repo)) =>
+        use.withRef(UseRef.Public(owner, repo, pinnedActions((owner, repo))))
+      case _ => use
+    }
+  case other => other
+}
+
+lazy val contentsOnly: Permissions.Specify = Permissions.Specify(
+  actions = PermissionValue.None,
+  checks = PermissionValue.None,
+  contents = PermissionValue.Read,
+  deployments = PermissionValue.None,
+  idToken = PermissionValue.None,
+  issues = PermissionValue.None,
+  packages = PermissionValue.None,
+  pages = PermissionValue.None,
+  pullRequests = PermissionValue.None,
+  repositoryProjects = PermissionValue.None,
+  securityEvents = PermissionValue.None,
+  statuses = PermissionValue.None
+)
+
+ThisBuild / githubWorkflowPermissions := Some(contentsOnly)
+// clean.yml is a static template shipped with sbt-typelevel; it is maintained by hand to carry a permissions block.
+ThisBuild / githubWorkflowIncludeClean := false
+ThisBuild / githubWorkflowGeneratedCI ~= { jobs =>
+  jobs.map { job =>
+    val pinned = job.withSteps(job.steps.map(pinAction))
+    // sbt-dependency-submission writes to the dependency graph API
+    if (job.id == "dependency-submission")
+      pinned.withPermissions(Some(contentsOnly.withContents(PermissionValue.Write)))
+    else pinned
+  }
+}
+
 lazy val root = tlCrossRootProject.aggregate(core, testKit)
 
 lazy val testKit = crossProject(JVMPlatform, JSPlatform, NativePlatform)
